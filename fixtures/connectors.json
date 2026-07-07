@@ -1,0 +1,30 @@
+{
+  "connectors": [
+    {
+      "id": "crm-lite",
+      "name": "CRM Lite",
+      "sideEffects": ["contact.update", "note.create"],
+      "capabilities": [
+        {
+          "name": "contact.read",
+          "requiredScopes": ["contacts:read"],
+          "requiresApproval": false,
+          "sideEffect": false
+        },
+        {
+          "name": "contact.update",
+          "requiredScopes": ["contacts:write"],
+          "requiresApproval": true,
+          "sideEffect": true
+        },
+        {
+          "name": "contact.delete",
+          "requiredScopes": ["contacts:delete"],
+          "requiresApproval": true,
+          "sideEffect": true,
+          "blocked": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "connector": "crm-lite",
+  "capability": "contact.delete",
+  "scopes": ["contacts:delete"],
+  "approval": "granted",
+  "dryRun": true
+}

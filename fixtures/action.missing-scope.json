@@ -1,0 +1,7 @@
+{
+  "connector": "crm-lite",
+  "capability": "contact.update",
+  "scopes": ["contacts:read"],
+  "approval": "granted",
+  "dryRun": true
+}

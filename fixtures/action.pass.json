@@ -1,0 +1,7 @@
+{
+  "connector": "crm-lite",
+  "capability": "contact.read",
+  "scopes": ["contacts:read"],
+  "approval": "not-required",
+  "dryRun": true
+}
