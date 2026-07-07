@@ -1,0 +1,34 @@
+{
+  "name": "connector-preflight-skill",
+  "version": "0.1.0",
+  "description": "Local-first agent skill for checking connector action readiness before side effects.",
+  "type": "module",
+  "bin": {
+    "connector-preflight": "./bin/connector-preflight.js"
+  },
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check bin/connector-preflight.js && node --check src/index.js",
+    "smoke": "node bin/connector-preflight.js check fixtures/connectors.json fixtures/action.needs-approval.json --format markdown"
+  },
+  "keywords": [
+    "agent",
+    "skill",
+    "connector",
+    "preflight",
+    "dry-run"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin",
+    "src",
+    "docs",
+    "fixtures",
+    "SKILL.md",
+    "README.md",
+    "LICENSE"
+  ]
+}
