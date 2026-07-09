@@ -9,6 +9,7 @@ npm install
 npm test
 node bin/connector-preflight.js check fixtures/connectors.json fixtures/action.needs-approval.json --format markdown
 node bin/connector-preflight.js inspect fixtures/connectors.json
+npm run release:check
 ```
 
 ## Commands
@@ -16,6 +17,8 @@ node bin/connector-preflight.js inspect fixtures/connectors.json
 - `connector-preflight inspect <connectors.json>` lists available connectors and capabilities.
 - `connector-preflight check <connectors.json> <action.json> --format markdown` renders a reviewable preflight report.
 - `connector-preflight check <connectors.json> <action.json> --format json` emits machine-readable output.
+- `connector-preflight --help` prints command usage.
+- `connector-preflight --version` prints the package version.
 
 ## Action Request
 
@@ -39,3 +42,8 @@ This tool never executes the connector action. It only evaluates local manifests
 - No OAuth, credential checks, or network calls.
 - Policies are embedded in connector manifests rather than fetched from a service.
 
+## Verify
+
+```bash
+npm run release:check
+```

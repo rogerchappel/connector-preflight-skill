@@ -51,7 +51,21 @@ test("CLI inspect works with fixture manifest", () => {
   assert.match(output, /crm-lite/);
 });
 
+test("CLI exposes help and version metadata", () => {
+  const cwd = new URL("..", import.meta.url);
+  const help = execFileSync("node", ["bin/connector-preflight.js", "--help"], {
+    cwd,
+    encoding: "utf8"
+  });
+  assert.match(help, /connector-preflight inspect/u);
+
+  const version = execFileSync("node", ["bin/connector-preflight.js", "--version"], {
+    cwd,
+    encoding: "utf8"
+  });
+  assert.equal(version, "0.1.0\n");
+});
+
 function fixture(name) {
   return JSON.parse(readFileSync(new URL(`../fixtures/${name}`, import.meta.url), "utf8"));
 }
-
