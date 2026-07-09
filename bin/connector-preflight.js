@@ -3,6 +3,12 @@ import { exitCodeForVerdict, inspectConnectors, preflight, readJson, renderMarkd
 
 const [command, manifestPath, actionPath, ...args] = process.argv.slice(2);
 
+if (command === "--version") {
+  const packageJson = readJson(new URL("../package.json", import.meta.url));
+  process.stdout.write(`${packageJson.version}\n`);
+  process.exit(0);
+}
+
 if (!command || !manifestPath || ["-h", "--help"].includes(command)) {
   printHelp();
   process.exit(command ? 0 : 1);
@@ -49,4 +55,3 @@ Usage:
   connector-preflight check <connectors.json> <action.json> --format markdown|json
 `);
 }
-
