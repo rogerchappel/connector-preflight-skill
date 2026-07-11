@@ -5,11 +5,18 @@ const required = [
   "bin/connector-preflight.js",
   "src/index.js",
   "fixtures/connectors.json",
+  "fixtures/action.pass.json",
+  "fixtures/action.needs-approval.json",
+  "fixtures/action.missing-scope.json",
+  "fixtures/action.blocked.json",
   "docs/EXAMPLES.md",
+  "docs/RELEASE_CANDIDATE.md",
+  "docs/SAFETY.md",
   "SKILL.md",
   "README.md",
   "LICENSE",
-  "SECURITY.md"
+  "SECURITY.md",
+  "scripts/package-smoke.js"
 ];
 
 const output = execFileSync("npm", ["pack", "--dry-run", "--json"], { encoding: "utf8" });
