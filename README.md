@@ -45,5 +45,11 @@ This tool never executes the connector action. It only evaluates local manifests
 ## Verify
 
 ```bash
+npm run check
+npm test
+npm run smoke
+npm run package:smoke
 npm run release:check
 ```
+
+`npm run package:smoke` verifies the publish preview includes the CLI, source, fixtures, examples, skill instructions, README, license, and security policy.
