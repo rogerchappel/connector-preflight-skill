@@ -32,6 +32,18 @@ npm run release:check
 }
 ```
 
+## Verification
+
+Run the same checks used for release-readiness before publishing or opening a release PR:
+
+```bash
+npm run check
+npm test
+npm run smoke
+npm run release:check
+npm pack --dry-run
+```
+
 ## Safety Notes
 
 This tool never executes the connector action. It only evaluates local manifests and local action requests. A `pass` verdict means the local preflight checks passed; it is not a guarantee that the live connector will succeed.
