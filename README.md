@@ -44,6 +44,8 @@ npm run release:check
 npm pack --dry-run
 ```
 
+CI runs `npm run release:check` on pull requests and pushes to `main`, including the package smoke that verifies publish contents.
+
 ## Safety Notes
 
 This tool never executes the connector action. It only evaluates local manifests and local action requests. A `pass` verdict means the local preflight checks passed; it is not a guarantee that the live connector will succeed.
@@ -53,15 +55,3 @@ This tool never executes the connector action. It only evaluates local manifests
 - JSON manifests only in V1.
 - No OAuth, credential checks, or network calls.
 - Policies are embedded in connector manifests rather than fetched from a service.
-
-## Verify
-
-```bash
-npm run check
-npm test
-npm run smoke
-npm run package:smoke
-npm run release:check
-```
-
-`npm run package:smoke` verifies the publish preview includes the CLI, source, fixtures, examples, skill instructions, README, license, and security policy.

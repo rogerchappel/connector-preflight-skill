@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  release-check:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -20,11 +20,8 @@ jobs:
         with:
           node-version: 20
 
-      - name: Run static checks
-        run: npm run check
+      - name: Install dependencies
+        run: npm install
 
-      - name: Run tests
-        run: npm test
-
-      - name: Run connector smoke
-        run: npm run smoke
+      - name: Run release check
+        run: npm run release:check
