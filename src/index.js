@@ -24,6 +24,11 @@ export function inspectConnectors(manifest) {
 }
 
 export function preflight(manifest, action) {
+  const actionFindings = validateAction(action);
+  if (actionFindings.length > 0) {
+    return result("blocked", actionFindings, isRecord(action) ? action : {});
+  }
+
   const findings = [];
   const connector = findConnector(manifest, action.connector);
   if (!connector) {
@@ -33,6 +38,11 @@ export function preflight(manifest, action) {
   const capability = (connector.capabilities || []).find((entry) => entry.name === action.capability);
   if (!capability) {
     return result("blocked", [`Connector ${connector.id} does not expose capability ${action.capability || "missing"}.`], action, connector);
+  }
+
+  const capabilityFindings = validateCapability(capability);
+  if (capabilityFindings.length > 0) {
+    return result("blocked", capabilityFindings, action, connector, capability);
   }
 
   if (capability.blocked === true) {
@@ -125,7 +135,54 @@ function chooseVerdict({ missingScopes, requiresApproval, approval, sideEffect, 
 }
 
 function findConnector(manifest, id) {
-  return (manifest.connectors || []).find((connector) => connector.id === id);
+  return (Array.isArray(manifest?.connectors) ? manifest.connectors : []).find((connector) => connector.id === id);
+}
+
+function validateAction(action) {
+  if (!isRecord(action)) {
+    return ["Invalid action: action must be a JSON object."];
+  }
+
+  const findings = [];
+  validateNonEmptyString(action.connector, "action.connector", findings);
+  validateNonEmptyString(action.capability, "action.capability", findings);
+  validateStringArray(action.scopes, "action.scopes", findings);
+  if (!["granted", "missing", "not-required"].includes(action.approval)) {
+    findings.push("Invalid action: action.approval must be one of: granted, missing, not-required.");
+  }
+  if (typeof action.dryRun !== "boolean") {
+    findings.push("Invalid action: action.dryRun must be a boolean.");
+  }
+  return findings;
+}
+
+function validateCapability(capability) {
+  const findings = [];
+  validateStringArray(capability.requiredScopes, "capability.requiredScopes", findings, "capability");
+  for (const field of ["requiresApproval", "sideEffect"]) {
+    if (typeof capability[field] !== "boolean") {
+      findings.push(`Invalid capability: capability.${field} must be a boolean.`);
+    }
+  }
+  return findings;
+}
+
+function validateNonEmptyString(value, path, findings) {
+  if (typeof value !== "string" || value.trim() === "") {
+    findings.push(`Invalid action: ${path} must be a non-empty string.`);
+  }
+}
+
+function validateStringArray(value, path, findings, subject = "action") {
+  if (!Array.isArray(value)) {
+    findings.push(`Invalid ${subject}: ${path} must be an array of non-empty strings.`);
+  } else if (value.some((entry) => typeof entry !== "string" || entry.trim() === "")) {
+    findings.push(`Invalid ${subject}: ${path} must contain only non-empty strings.`);
+  }
+}
+
+function isRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function result(verdict, findings, action, connector = null, capability = null) {
@@ -137,4 +194,3 @@ function result(verdict, findings, action, connector = null, capability = null) 
     capability
   };
 }
-

@@ -32,6 +32,17 @@ npm run release:check
 }
 ```
 
+Every action request must be a JSON object with:
+
+- `connector` and `capability`: non-empty strings.
+- `scopes`: an array of non-empty strings. Use `[]` to explicitly request no scopes.
+- `approval`: one of `granted`, `missing`, or `not-required`.
+- `dryRun`: a boolean.
+
+Each manifest capability must define `name`, `requiredScopes`, `requiresApproval`, and `sideEffect`. `requiredScopes` is an array of non-empty strings; use `[]` to explicitly declare a capability that needs no scopes. Both policy flags are booleans. `blocked` is an optional boolean policy flag.
+
+Incomplete or wrongly typed action or capability data produces a deterministic `blocked` verdict. The CLI prints the diagnostics and exits with status 2.
+
 ## Verification
 
 Run the same checks used for release-readiness before publishing or opening a release PR:
