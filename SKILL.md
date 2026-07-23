@@ -6,7 +6,10 @@ Use this skill before an agent invokes a connector that may read private data, w
 
 - A local connector manifest JSON file.
 - A local action request JSON file.
-- The intended capability, requested scopes, approval state, and dry-run flag.
+- An action object with non-empty string `connector` and `capability` fields, a `scopes` array of non-empty strings, an `approval` value of `granted`, `missing`, or `not-required`, and a boolean `dryRun`.
+- A selected manifest capability with a non-empty string `name`, a `requiredScopes` array of non-empty strings, and boolean `requiresApproval` and `sideEffect` fields.
+
+Use an empty array (`[]`) to explicitly represent no requested or required scopes. Do not omit scope arrays or policy booleans; malformed or incomplete data is blocked.
 
 ## Side-Effect Boundaries
 
@@ -35,4 +38,3 @@ connector-preflight check fixtures/connectors.json fixtures/action.pass.json --f
 ## Verification
 
 Run `npm test`, `npm run check`, and `npm run smoke` before release.
-
