@@ -14,7 +14,12 @@ export function readJson(filePath) {
 }
 
 export function inspectConnectors(manifest) {
-  const connectors = Array.isArray(manifest.connectors) ? manifest.connectors : [];
+  const manifestFindings = validateManifest(manifest);
+  if (manifestFindings.length > 0) {
+    throw new Error(manifestFindings.join("\n"));
+  }
+
+  const connectors = manifest.connectors;
   return connectors.map((connector) => ({
     id: connector.id,
     name: connector.name || connector.id,
@@ -27,6 +32,11 @@ export function preflight(manifest, action) {
   const actionFindings = validateAction(action);
   if (actionFindings.length > 0) {
     return result("blocked", actionFindings, isRecord(action) ? action : {});
+  }
+
+  const manifestFindings = validateManifest(manifest);
+  if (manifestFindings.length > 0) {
+    return result("blocked", manifestFindings, action);
   }
 
   const findings = [];
@@ -154,6 +164,44 @@ function validateAction(action) {
     findings.push("Invalid action: action.dryRun must be a boolean.");
   }
   return findings;
+}
+
+function validateManifest(manifest) {
+  if (!isRecord(manifest)) {
+    return ["Invalid manifest: manifest must be a JSON object."];
+  }
+  if (!Array.isArray(manifest.connectors)) {
+    return ["Invalid manifest: manifest.connectors must be an array."];
+  }
+
+  const findings = [];
+  for (const [connectorIndex, connector] of manifest.connectors.entries()) {
+    const connectorPath = `manifest.connectors[${connectorIndex}]`;
+    if (!isRecord(connector)) {
+      findings.push(`Invalid manifest: ${connectorPath} must be a JSON object.`);
+      continue;
+    }
+    validateManifestString(connector.id, `${connectorPath}.id`, findings);
+    if (!Array.isArray(connector.capabilities)) {
+      findings.push(`Invalid manifest: ${connectorPath}.capabilities must be an array.`);
+      continue;
+    }
+    for (const [capabilityIndex, capability] of connector.capabilities.entries()) {
+      const capabilityPath = `${connectorPath}.capabilities[${capabilityIndex}]`;
+      if (!isRecord(capability)) {
+        findings.push(`Invalid manifest: ${capabilityPath} must be a JSON object.`);
+        continue;
+      }
+      validateManifestString(capability.name, `${capabilityPath}.name`, findings);
+    }
+  }
+  return findings;
+}
+
+function validateManifestString(value, path, findings) {
+  if (typeof value !== "string" || value.trim() === "") {
+    findings.push(`Invalid manifest: ${path} must be a non-empty string.`);
+  }
 }
 
 function validateCapability(capability) {

@@ -41,7 +41,9 @@ Every action request must be a JSON object with:
 
 Each manifest capability must define `name`, `requiredScopes`, `requiresApproval`, and `sideEffect`. `requiredScopes` is an array of non-empty strings; use `[]` to explicitly declare a capability that needs no scopes. Both policy flags are booleans. `blocked` is an optional boolean policy flag.
 
-Incomplete or wrongly typed action or capability data produces a deterministic `blocked` verdict. The CLI prints the diagnostics and exits with status 2.
+A manifest must be a JSON object with a `connectors` array. Every connector is an object with a non-empty string `id` and a `capabilities` array; every capability is an object with a non-empty string `name`.
+
+For `check`, incomplete or wrongly typed action, connector, or capability data produces a deterministic `blocked` verdict. The CLI prints the diagnostics and exits with status 2. `inspect` prints malformed-manifest diagnostics to stderr and exits with status 1.
 
 ## Verification
 

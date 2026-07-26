@@ -18,6 +18,21 @@ test("inspect lists connector capabilities", () => {
   assert.deepEqual(connectors[0].capabilities, ["contact.read", "contact.update", "contact.delete"]);
 });
 
+test("inspect rejects malformed manifest shapes before traversal", () => {
+  const cases = [
+    [{}, /manifest\.connectors must be an array/],
+    [{ connectors: [null] }, /manifest\.connectors\[0\] must be a JSON object/],
+    [{ connectors: [{ id: "", capabilities: [] }] }, /manifest\.connectors\[0\]\.id must be a non-empty string/],
+    [{ connectors: [{ id: "demo", capabilities: {} }] }, /manifest\.connectors\[0\]\.capabilities must be an array/],
+    [{ connectors: [{ id: "demo", capabilities: [null] }] }, /manifest\.connectors\[0\]\.capabilities\[0\] must be a JSON object/],
+    [{ connectors: [{ id: "demo", capabilities: [{}] }] }, /manifest\.connectors\[0\]\.capabilities\[0\]\.name must be a non-empty string/]
+  ];
+
+  for (const [malformedManifest, diagnostic] of cases) {
+    assert.throws(() => inspectConnectors(malformedManifest), diagnostic);
+  }
+});
+
 test("preflight passes read-only dry-run action", () => {
   assert.equal(preflight(manifest, passAction).verdict, "pass");
 });
@@ -87,6 +102,29 @@ test("preflight blocks incomplete and wrongly typed capability metadata", () => 
   }
 });
 
+test("preflight blocks malformed manifest shapes before traversal", () => {
+  const action = {
+    connector: "demo",
+    capability: "read",
+    scopes: [],
+    approval: "not-required",
+    dryRun: true
+  };
+  const cases = [
+    [{}, /manifest\.connectors must be an array/],
+    [{ connectors: [false] }, /manifest\.connectors\[0\] must be a JSON object/],
+    [{ connectors: [{ capabilities: [] }] }, /manifest\.connectors\[0\]\.id must be a non-empty string/],
+    [{ connectors: [{ id: "demo", capabilities: {} }] }, /manifest\.connectors\[0\]\.capabilities must be an array/],
+    [{ connectors: [{ id: "demo", capabilities: ["read"] }] }, /manifest\.connectors\[0\]\.capabilities\[0\] must be a JSON object/]
+  ];
+
+  for (const [malformedManifest, diagnostic] of cases) {
+    const report = preflight(malformedManifest, action);
+    assert.equal(report.verdict, "blocked");
+    assert.match(report.findings.join("\n"), diagnostic);
+  }
+});
+
 test("empty scope arrays explicitly represent a valid zero-scope capability", () => {
   const zeroScopeManifest = {
     connectors: [{
@@ -139,6 +177,38 @@ test("CLI inspect works with fixture manifest", () => {
     encoding: "utf8"
   });
   assert.match(output, /crm-lite/);
+});
+
+test("CLI inspect exits nonzero with clear malformed-manifest diagnostics", () => {
+  const manifestPath = join(tmpdir(), `connector-preflight-manifest-${process.pid}.json`);
+  writeFileSync(manifestPath, JSON.stringify({ connectors: [{ id: "demo", capabilities: {} }] }));
+  const run = spawnSync("node", ["bin/connector-preflight.js", "inspect", manifestPath], {
+    cwd: new URL("..", import.meta.url),
+    encoding: "utf8"
+  });
+  assert.equal(run.status, 1);
+  assert.equal(run.stdout, "");
+  assert.match(run.stderr, /manifest\.connectors\[0\]\.capabilities must be an array/);
+  assert.doesNotMatch(run.stderr, /TypeError/);
+});
+
+test("CLI check exits 2 with a blocked malformed-manifest report", () => {
+  const manifestPath = join(tmpdir(), `connector-preflight-manifest-check-${process.pid}.json`);
+  writeFileSync(manifestPath, JSON.stringify({}));
+  const run = spawnSync("node", [
+    "bin/connector-preflight.js",
+    "check",
+    manifestPath,
+    "fixtures/action.pass.json"
+  ], {
+    cwd: new URL("..", import.meta.url),
+    encoding: "utf8"
+  });
+  assert.equal(run.status, 2);
+  const report = JSON.parse(run.stdout);
+  assert.equal(report.verdict, "blocked");
+  assert.deepEqual(report.findings, ["Invalid manifest: manifest.connectors must be an array."]);
+  assert.equal(run.stderr, "");
 });
 
 test("CLI exposes help and version metadata", () => {
