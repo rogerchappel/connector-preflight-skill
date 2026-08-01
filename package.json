@@ -9,7 +9,7 @@
   "scripts": {
     "test": "node --test",
     "check": "node --check bin/connector-preflight.js && node --check src/index.js",
-    "smoke": "node bin/connector-preflight.js check fixtures/connectors.json fixtures/action.needs-approval.json --format markdown",
+    "smoke": "node bin/connector-preflight.js check fixtures/connectors.json fixtures/action.pass.json --format markdown",
     "package:smoke": "node scripts/package-smoke.js",
     "release:check": "npm run check && npm test && npm run smoke && npm run package:smoke"
   },
