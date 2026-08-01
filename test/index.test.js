@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { inspectConnectors, preflight, renderMarkdown } from "../src/index.js";
+import { exitCodeForVerdict, inspectConnectors, preflight, renderMarkdown } from "../src/index.js";
 
 const manifest = JSON.parse(readFileSync(new URL("../fixtures/connectors.json", import.meta.url), "utf8"));
 const passAction = fixture("action.pass.json");
@@ -52,6 +52,21 @@ test("preflight detects missing scopes", () => {
 test("preflight blocks manifest-blocked capabilities", () => {
   const report = preflight(manifest, blockedAction);
   assert.equal(report.verdict, "blocked");
+});
+
+test("every verdict has an automation-safe exit code", () => {
+  assert.deepEqual(
+    Object.fromEntries(["pass", "needs-approval", "missing-scope", "blocked"].map((verdict) => [
+      verdict,
+      exitCodeForVerdict(verdict)
+    ])),
+    {
+      pass: 0,
+      "needs-approval": 2,
+      "missing-scope": 2,
+      blocked: 2
+    }
+  );
 });
 
 test("preflight blocks incomplete and wrongly typed action requests", () => {
@@ -209,6 +224,32 @@ test("CLI check exits 2 with a blocked malformed-manifest report", () => {
   assert.equal(report.verdict, "blocked");
   assert.deepEqual(report.findings, ["Invalid manifest: manifest.connectors must be an array."]);
   assert.equal(run.stderr, "");
+});
+
+test("CLI check exit status matches every verdict", () => {
+  const cases = [
+    ["action.pass.json", "pass", 0],
+    ["action.needs-approval.json", "needs-approval", 2],
+    ["action.missing-scope.json", "missing-scope", 2],
+    ["action.blocked.json", "blocked", 2]
+  ];
+
+  for (const [fixtureName, verdict, status] of cases) {
+    const run = spawnSync("node", [
+      "bin/connector-preflight.js",
+      "check",
+      "fixtures/connectors.json",
+      `fixtures/${fixtureName}`,
+      "--format",
+      "json"
+    ], {
+      cwd: new URL("..", import.meta.url),
+      encoding: "utf8"
+    });
+    assert.equal(run.status, status, `${verdict} should exit ${status}: ${run.stderr}`);
+    assert.equal(JSON.parse(run.stdout).verdict, verdict);
+    assert.equal(run.stderr, "");
+  }
 });
 
 test("CLI exposes help and version metadata", () => {
