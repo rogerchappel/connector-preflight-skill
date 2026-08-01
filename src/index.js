@@ -127,7 +127,7 @@ export function renderMarkdown(report) {
 }
 
 export function exitCodeForVerdict(verdict) {
-  return ["blocked", "missing-scope"].includes(verdict) ? 2 : 0;
+  return verdict === "pass" ? 0 : 2;
 }
 
 function chooseVerdict({ missingScopes, requiresApproval, approval, sideEffect, dryRun }) {

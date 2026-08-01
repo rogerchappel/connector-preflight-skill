@@ -20,6 +20,19 @@ npm run release:check
 - `connector-preflight --help` prints command usage.
 - `connector-preflight --version` prints the package version.
 
+### Exit codes
+
+`check` uses a fail-closed exit-code contract for shell and CI automation:
+
+| Verdict | Exit status | Meaning |
+| --- | ---: | --- |
+| `pass` | 0 | Local preflight checks passed. |
+| `needs-approval` | 2 | Stop until explicit approval is granted. |
+| `missing-scope` | 2 | Stop until all required scopes are supplied. |
+| `blocked` | 2 | Stop because policy or input validation blocked the action. |
+
+Status 0 therefore means only `pass`; callers must not treat any other verdict as ready to execute. CLI usage or file/JSON errors exit with status 1. `inspect` exits 0 on success and 1 on invalid input.
+
 ## Action Request
 
 ```json
@@ -43,7 +56,7 @@ Each manifest capability must define `name`, `requiredScopes`, `requiresApproval
 
 A manifest must be a JSON object with a `connectors` array. Every connector is an object with a non-empty string `id` and a `capabilities` array; every capability is an object with a non-empty string `name`.
 
-For `check`, incomplete or wrongly typed action, connector, or capability data produces a deterministic `blocked` verdict. The CLI prints the diagnostics and exits with status 2. `inspect` prints malformed-manifest diagnostics to stderr and exits with status 1.
+For `check`, incomplete or wrongly typed action, connector, or capability data produces a deterministic `blocked` verdict. The CLI prints the diagnostics and follows the exit-code contract above. `inspect` prints malformed-manifest diagnostics to stderr and exits with status 1.
 
 ## Verification
 

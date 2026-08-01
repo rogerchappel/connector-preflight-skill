@@ -26,4 +26,4 @@ npm run smoke
 - README includes quickstart and safety notes.
 - `SKILL.md` documents stop conditions.
 - Fixtures cover all verdicts.
-- CLI exits non-zero for blocked and missing-scope verdicts.
+- CLI exits 0 only for `pass` and exits 2 for `needs-approval`, `missing-scope`, and `blocked` verdicts.
