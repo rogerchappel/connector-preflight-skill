@@ -9,10 +9,11 @@ ship
 Run:
 
 ```bash
-npm test
-npm run check
-npm run smoke
+npm ci
+npm run release:check
 ```
+
+Run these commands from a clean checkout. The frozen install detects drift between `package.json` and `package-lock.json`; `release:check` runs syntax checks, tests, the CLI smoke test, and the package-content smoke test.
 
 2026-07-08 release-candidate verification:
 

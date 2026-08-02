@@ -5,7 +5,7 @@
 ## Quickstart
 
 ```bash
-npm install
+npm ci
 npm test
 node bin/connector-preflight.js check fixtures/connectors.json fixtures/action.needs-approval.json --format markdown
 node bin/connector-preflight.js inspect fixtures/connectors.json
@@ -60,17 +60,14 @@ For `check`, incomplete or wrongly typed action, connector, or capability data p
 
 ## Verification
 
-Run the same checks used for release-readiness before publishing or opening a release PR:
+Start from a clean checkout and run the same frozen install and checks used by CI before publishing or opening a release PR:
 
 ```bash
-npm run check
-npm test
-npm run smoke
+npm ci
 npm run release:check
-npm pack --dry-run
 ```
 
-CI runs `npm run release:check` on pull requests and pushes to `main`, including the package smoke that verifies publish contents.
+`npm ci` fails if `package.json` and `package-lock.json` drift, and it installs exactly the committed dependency graph. CI uses this same command on pull requests and pushes to `main`, then runs `npm run release:check`, including the package smoke that verifies publish contents.
 
 ## Safety Notes
 
