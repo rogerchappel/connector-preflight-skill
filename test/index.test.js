@@ -252,6 +252,34 @@ test("CLI check exit status matches every verdict", () => {
   }
 });
 
+test("CLI accepts check with the default format and each explicit format", () => {
+  for (const formatArgs of [[], ["--format", "json"], ["--format", "markdown"]]) {
+    const run = runCli("check", "fixtures/connectors.json", "fixtures/action.pass.json", ...formatArgs);
+    assert.equal(run.status, 0, run.stderr);
+    assert.equal(run.stderr, "");
+    assert.notEqual(run.stdout, "");
+  }
+});
+
+test("CLI rejects invalid argument forms without emitting a report", () => {
+  const cases = [
+    [["inspect", "fixtures/connectors.json", "unexpected.json"], /inspect does not accept extra arguments/],
+    [["inspect", "fixtures/connectors.json", "--format", "json"], /inspect does not accept extra arguments/],
+    [["check", "fixtures/connectors.json", "fixtures/action.pass.json", "extra.json"], /Unexpected positional argument: extra\.json/],
+    [["check", "fixtures/connectors.json", "fixtures/action.pass.json", "--formt", "markdown"], /Unknown option: --formt/],
+    [["check", "fixtures/connectors.json", "fixtures/action.pass.json", "--format"], /--format requires a value/],
+    [["check", "fixtures/connectors.json", "fixtures/action.pass.json", "--format", "--help"], /--format requires a value/],
+    [["check", "fixtures/connectors.json", "fixtures/action.pass.json", "--format", "json", "--format", "markdown"], /--format may only be specified once/]
+  ];
+
+  for (const [args, diagnostic] of cases) {
+    const run = runCli(...args);
+    assert.equal(run.status, 1, `${args.join(" ")}: ${run.stderr}`);
+    assert.equal(run.stdout, "");
+    assert.match(run.stderr, diagnostic);
+  }
+});
+
 test("CLI exposes help and version metadata", () => {
   const cwd = new URL("..", import.meta.url);
   const help = execFileSync("node", ["bin/connector-preflight.js", "--help"], {
@@ -269,4 +297,11 @@ test("CLI exposes help and version metadata", () => {
 
 function fixture(name) {
   return JSON.parse(readFileSync(new URL(`../fixtures/${name}`, import.meta.url), "utf8"));
+}
+
+function runCli(...args) {
+  return spawnSync("node", ["bin/connector-preflight.js", ...args], {
+    cwd: new URL("..", import.meta.url),
+    encoding: "utf8"
+  });
 }
