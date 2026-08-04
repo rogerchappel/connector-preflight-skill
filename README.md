@@ -15,7 +15,7 @@ npm run release:check
 ## Commands
 
 - `connector-preflight inspect <connectors.json>` lists available connectors and capabilities.
-- `connector-preflight check <connectors.json> <action.json> --format markdown` renders a reviewable preflight report.
+- `connector-preflight check <connectors.json> <action.json> [--format markdown|json]` checks an action. JSON is the default; `markdown` renders a reviewable report.
 - `connector-preflight check <connectors.json> <action.json> --format json` emits machine-readable output.
 - `connector-preflight --help` prints command usage.
 - `connector-preflight --version` prints the package version.
@@ -31,7 +31,7 @@ npm run release:check
 | `missing-scope` | 2 | Stop until all required scopes are supplied. |
 | `blocked` | 2 | Stop because policy or input validation blocked the action. |
 
-Status 0 therefore means only `pass`; callers must not treat any other verdict as ready to execute. CLI usage or file/JSON errors exit with status 1. `inspect` exits 0 on success and 1 on invalid input.
+Status 0 therefore means only `pass`; callers must not treat any other verdict as ready to execute. CLI usage errors—including unknown flags, extra positionals, duplicate options, and missing option values—or file/JSON errors exit with status 1 and write a diagnostic to stderr without producing a verdict or report. `inspect` exits 0 on success and 1 on invalid input.
 
 ## Action Request
 
