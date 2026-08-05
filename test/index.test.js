@@ -33,6 +33,31 @@ test("inspect rejects malformed manifest shapes before traversal", () => {
   }
 });
 
+test("manifest validation reports every malformed capability policy field in index order", () => {
+  const malformedManifest = {
+    connectors: [{
+      id: "demo",
+      capabilities: [
+        { name: "valid", requiredScopes: [], requiresApproval: false, sideEffect: false },
+        { name: "broken", requiredScopes: "read", requiresApproval: "yes", sideEffect: null, blocked: "no" }
+      ]
+    }]
+  };
+
+  assert.throws(
+    () => inspectConnectors(malformedManifest),
+    (error) => {
+      assert.deepEqual(error.message.split("\n"), [
+        "Invalid manifest: manifest.connectors[0].capabilities[1].requiredScopes must be an array of non-empty strings.",
+        "Invalid manifest: manifest.connectors[0].capabilities[1].requiresApproval must be a boolean.",
+        "Invalid manifest: manifest.connectors[0].capabilities[1].sideEffect must be a boolean.",
+        "Invalid manifest: manifest.connectors[0].capabilities[1].blocked must be a boolean when provided."
+      ]);
+      return true;
+    }
+  );
+});
+
 test("preflight passes read-only dry-run action", () => {
   assert.equal(preflight(manifest, passAction).verdict, "pass");
 });
@@ -89,16 +114,17 @@ test("preflight blocks incomplete and wrongly typed action requests", () => {
   }
 });
 
-test("preflight blocks incomplete and wrongly typed capability metadata", () => {
+test("preflight blocks incomplete and wrongly typed capability metadata with indexed paths", () => {
   const base = { name: "read", requiredScopes: [], requiresApproval: false, sideEffect: false };
   const cases = [
-    [{ ...base, requiredScopes: undefined }, /capability\.requiredScopes must be an array/],
-    [{ ...base, requiredScopes: "read" }, /capability\.requiredScopes must be an array/],
-    [{ ...base, requiredScopes: [1] }, /capability\.requiredScopes must contain only non-empty strings/],
-    [{ ...base, requiresApproval: undefined }, /capability\.requiresApproval must be a boolean/],
-    [{ ...base, requiresApproval: "false" }, /capability\.requiresApproval must be a boolean/],
-    [{ ...base, sideEffect: undefined }, /capability\.sideEffect must be a boolean/],
-    [{ ...base, sideEffect: "false" }, /capability\.sideEffect must be a boolean/]
+    [{ ...base, requiredScopes: undefined }, /capabilities\[0\]\.requiredScopes must be an array/],
+    [{ ...base, requiredScopes: "read" }, /capabilities\[0\]\.requiredScopes must be an array/],
+    [{ ...base, requiredScopes: [1] }, /capabilities\[0\]\.requiredScopes must contain only non-empty strings/],
+    [{ ...base, requiresApproval: undefined }, /capabilities\[0\]\.requiresApproval must be a boolean/],
+    [{ ...base, requiresApproval: "false" }, /capabilities\[0\]\.requiresApproval must be a boolean/],
+    [{ ...base, sideEffect: undefined }, /capabilities\[0\]\.sideEffect must be a boolean/],
+    [{ ...base, sideEffect: "false" }, /capabilities\[0\]\.sideEffect must be a boolean/],
+    [{ ...base, blocked: "false" }, /capabilities\[0\]\.blocked must be a boolean when provided/]
   ];
 
   for (const [capability, diagnostic] of cases) {
@@ -115,6 +141,30 @@ test("preflight blocks incomplete and wrongly typed capability metadata", () => 
     assert.equal(report.verdict, "blocked");
     assert.match(report.findings.join("\n"), diagnostic);
   }
+});
+
+test("preflight validates unselected capabilities before connector lookup", () => {
+  const malformedManifest = {
+    connectors: [{
+      id: "demo",
+      capabilities: [
+        { name: "read", requiredScopes: [], requiresApproval: false, sideEffect: false },
+        { name: "write", requiredScopes: [], requiresApproval: "yes", sideEffect: true }
+      ]
+    }]
+  };
+  const report = preflight(malformedManifest, {
+    connector: "absent",
+    capability: "other",
+    scopes: [],
+    approval: "not-required",
+    dryRun: true
+  });
+
+  assert.equal(report.verdict, "blocked");
+  assert.deepEqual(report.findings, [
+    "Invalid manifest: manifest.connectors[0].capabilities[1].requiresApproval must be a boolean."
+  ]);
 });
 
 test("preflight blocks malformed manifest shapes before traversal", () => {
@@ -224,6 +274,42 @@ test("CLI check exits 2 with a blocked malformed-manifest report", () => {
   assert.equal(report.verdict, "blocked");
   assert.deepEqual(report.findings, ["Invalid manifest: manifest.connectors must be an array."]);
   assert.equal(run.stderr, "");
+});
+
+test("CLI inspect and check reject an unselected malformed capability", () => {
+  const manifestPath = join(tmpdir(), `connector-preflight-policy-${process.pid}.json`);
+  writeFileSync(manifestPath, JSON.stringify({
+    connectors: [{
+      id: "demo",
+      capabilities: [
+        { name: "read", requiredScopes: [], requiresApproval: false, sideEffect: false },
+        { name: "write", requiredScopes: "write", requiresApproval: false, sideEffect: true }
+      ]
+    }]
+  }));
+
+  const inspectRun = spawnSync("node", ["bin/connector-preflight.js", "inspect", manifestPath], {
+    cwd: new URL("..", import.meta.url),
+    encoding: "utf8"
+  });
+  assert.equal(inspectRun.status, 1);
+  assert.equal(inspectRun.stdout, "");
+  assert.match(inspectRun.stderr, /capabilities\[1\]\.requiredScopes must be an array/);
+
+  const checkRun = spawnSync("node", [
+    "bin/connector-preflight.js",
+    "check",
+    manifestPath,
+    "fixtures/action.pass.json"
+  ], {
+    cwd: new URL("..", import.meta.url),
+    encoding: "utf8"
+  });
+  assert.equal(checkRun.status, 2);
+  assert.equal(checkRun.stderr, "");
+  assert.deepEqual(JSON.parse(checkRun.stdout).findings, [
+    "Invalid manifest: manifest.connectors[0].capabilities[1].requiredScopes must be an array of non-empty strings."
+  ]);
 });
 
 test("CLI check exit status matches every verdict", () => {

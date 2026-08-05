@@ -50,11 +50,6 @@ export function preflight(manifest, action) {
     return result("blocked", [`Connector ${connector.id} does not expose capability ${action.capability || "missing"}.`], action, connector);
   }
 
-  const capabilityFindings = validateCapability(capability);
-  if (capabilityFindings.length > 0) {
-    return result("blocked", capabilityFindings, action, connector, capability);
-  }
-
   if (capability.blocked === true) {
     return result("blocked", [`Capability ${capability.name} is blocked by manifest policy.`], action, connector, capability);
   }
@@ -193,6 +188,15 @@ function validateManifest(manifest) {
         continue;
       }
       validateManifestString(capability.name, `${capabilityPath}.name`, findings);
+      validateManifestStringArray(capability.requiredScopes, `${capabilityPath}.requiredScopes`, findings);
+      for (const field of ["requiresApproval", "sideEffect"]) {
+        if (typeof capability[field] !== "boolean") {
+          findings.push(`Invalid manifest: ${capabilityPath}.${field} must be a boolean.`);
+        }
+      }
+      if (capability.blocked !== undefined && typeof capability.blocked !== "boolean") {
+        findings.push(`Invalid manifest: ${capabilityPath}.blocked must be a boolean when provided.`);
+      }
     }
   }
   return findings;
@@ -204,15 +208,12 @@ function validateManifestString(value, path, findings) {
   }
 }
 
-function validateCapability(capability) {
-  const findings = [];
-  validateStringArray(capability.requiredScopes, "capability.requiredScopes", findings, "capability");
-  for (const field of ["requiresApproval", "sideEffect"]) {
-    if (typeof capability[field] !== "boolean") {
-      findings.push(`Invalid capability: capability.${field} must be a boolean.`);
-    }
+function validateManifestStringArray(value, path, findings) {
+  if (!Array.isArray(value)) {
+    findings.push(`Invalid manifest: ${path} must be an array of non-empty strings.`);
+  } else if (value.some((entry) => typeof entry !== "string" || entry.trim() === "")) {
+    findings.push(`Invalid manifest: ${path} must contain only non-empty strings.`);
   }
-  return findings;
 }
 
 function validateNonEmptyString(value, path, findings) {
