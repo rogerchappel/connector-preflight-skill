@@ -58,6 +58,85 @@ test("manifest validation reports every malformed capability policy field in ind
   );
 });
 
+test("manifest validation reports every duplicate connector id in index order", () => {
+  const duplicateManifest = {
+    connectors: [
+      connector("duplicate", "read"),
+      connector("other", "read"),
+      connector("duplicate", "write"),
+      connector("duplicate", "delete")
+    ]
+  };
+
+  assert.throws(
+    () => inspectConnectors(duplicateManifest),
+    (error) => {
+      assert.deepEqual(error.message.split("\n"), [
+        'Invalid manifest: manifest.connectors[2].id duplicates manifest.connectors[0].id ("duplicate").',
+        'Invalid manifest: manifest.connectors[3].id duplicates manifest.connectors[0].id ("duplicate").'
+      ]);
+      return true;
+    }
+  );
+});
+
+test("manifest validation reports duplicate capability names within each connector", () => {
+  const duplicateManifest = {
+    connectors: [
+      {
+        ...connector("first", "read"),
+        capabilities: [capability("read"), capability("read"), capability("read")]
+      },
+      {
+        ...connector("second", "write"),
+        capabilities: [capability("write"), capability("write")]
+      }
+    ]
+  };
+
+  assert.throws(
+    () => inspectConnectors(duplicateManifest),
+    (error) => {
+      assert.deepEqual(error.message.split("\n"), [
+        'Invalid manifest: manifest.connectors[0].capabilities[1].name duplicates manifest.connectors[0].capabilities[0].name ("read").',
+        'Invalid manifest: manifest.connectors[0].capabilities[2].name duplicates manifest.connectors[0].capabilities[0].name ("read").',
+        'Invalid manifest: manifest.connectors[1].capabilities[1].name duplicates manifest.connectors[1].capabilities[0].name ("write").'
+      ]);
+      return true;
+    }
+  );
+});
+
+test("preflight blocks duplicate identities before selecting a permissive definition", () => {
+  const action = {
+    connector: "duplicate",
+    capability: "write",
+    scopes: [],
+    approval: "not-required",
+    dryRun: false
+  };
+  const duplicateConnectors = {
+    connectors: [
+      connector("duplicate", "write"),
+      { ...connector("duplicate", "write"), capabilities: [{ ...capability("write"), blocked: true }] }
+    ]
+  };
+  const duplicateCapabilities = {
+    connectors: [{
+      ...connector("duplicate", "write"),
+      capabilities: [capability("write"), { ...capability("write"), blocked: true }]
+    }]
+  };
+
+  for (const duplicateManifest of [duplicateConnectors, duplicateCapabilities]) {
+    const report = preflight(duplicateManifest, action);
+    assert.equal(report.verdict, "blocked");
+    assert.equal(report.connector, null);
+    assert.equal(report.capability, null);
+    assert.match(report.findings[0], /duplicates manifest\.connectors/);
+  }
+});
+
 test("preflight passes read-only dry-run action", () => {
   assert.equal(preflight(manifest, passAction).verdict, "pass");
 });
@@ -312,6 +391,35 @@ test("CLI inspect and check reject an unselected malformed capability", () => {
   ]);
 });
 
+test("CLI inspect and check fail closed for duplicate manifest identities", () => {
+  const manifestPath = join(tmpdir(), `connector-preflight-duplicates-${process.pid}.json`);
+  writeFileSync(manifestPath, JSON.stringify({
+    connectors: [
+      {
+        ...connector("duplicate", "write"),
+        capabilities: [capability("write"), { ...capability("write"), blocked: true }]
+      },
+      { ...connector("duplicate", "write"), capabilities: [{ ...capability("write"), blocked: true }] }
+    ]
+  }));
+
+  const inspectRun = runCli("inspect", manifestPath);
+  assert.equal(inspectRun.status, 1);
+  assert.equal(inspectRun.stdout, "");
+  assert.deepEqual(inspectRun.stderr.trim().split("\n"), [
+    'Invalid manifest: manifest.connectors[0].capabilities[1].name duplicates manifest.connectors[0].capabilities[0].name ("write").',
+    'Invalid manifest: manifest.connectors[1].id duplicates manifest.connectors[0].id ("duplicate").'
+  ]);
+
+  const checkRun = runCli("check", manifestPath, "fixtures/action.pass.json");
+  assert.equal(checkRun.status, 2);
+  assert.equal(checkRun.stderr, "");
+  assert.deepEqual(JSON.parse(checkRun.stdout).findings, [
+    'Invalid manifest: manifest.connectors[0].capabilities[1].name duplicates manifest.connectors[0].capabilities[0].name ("write").',
+    'Invalid manifest: manifest.connectors[1].id duplicates manifest.connectors[0].id ("duplicate").'
+  ]);
+});
+
 test("CLI check exit status matches every verdict", () => {
   const cases = [
     ["action.pass.json", "pass", 0],
@@ -383,6 +491,14 @@ test("CLI exposes help and version metadata", () => {
 
 function fixture(name) {
   return JSON.parse(readFileSync(new URL(`../fixtures/${name}`, import.meta.url), "utf8"));
+}
+
+function capability(name) {
+  return { name, requiredScopes: [], requiresApproval: false, sideEffect: false };
+}
+
+function connector(id, capabilityName) {
+  return { id, capabilities: [capability(capabilityName)] };
 }
 
 function runCli(...args) {
