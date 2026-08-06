@@ -170,6 +170,7 @@ function validateManifest(manifest) {
   }
 
   const findings = [];
+  const connectorIds = new Map();
   for (const [connectorIndex, connector] of manifest.connectors.entries()) {
     const connectorPath = `manifest.connectors[${connectorIndex}]`;
     if (!isRecord(connector)) {
@@ -177,10 +178,12 @@ function validateManifest(manifest) {
       continue;
     }
     validateManifestString(connector.id, `${connectorPath}.id`, findings);
+    validateUniqueManifestString(connector.id, `${connectorPath}.id`, connectorIds, findings);
     if (!Array.isArray(connector.capabilities)) {
       findings.push(`Invalid manifest: ${connectorPath}.capabilities must be an array.`);
       continue;
     }
+    const capabilityNames = new Map();
     for (const [capabilityIndex, capability] of connector.capabilities.entries()) {
       const capabilityPath = `${connectorPath}.capabilities[${capabilityIndex}]`;
       if (!isRecord(capability)) {
@@ -188,6 +191,7 @@ function validateManifest(manifest) {
         continue;
       }
       validateManifestString(capability.name, `${capabilityPath}.name`, findings);
+      validateUniqueManifestString(capability.name, `${capabilityPath}.name`, capabilityNames, findings);
       validateManifestStringArray(capability.requiredScopes, `${capabilityPath}.requiredScopes`, findings);
       for (const field of ["requiresApproval", "sideEffect"]) {
         if (typeof capability[field] !== "boolean") {
@@ -200,6 +204,18 @@ function validateManifest(manifest) {
     }
   }
   return findings;
+}
+
+function validateUniqueManifestString(value, path, seen, findings) {
+  if (typeof value !== "string" || value.trim() === "") {
+    return;
+  }
+  const firstPath = seen.get(value);
+  if (firstPath) {
+    findings.push(`Invalid manifest: ${path} duplicates ${firstPath} (${JSON.stringify(value)}).`);
+  } else {
+    seen.set(value, path);
+  }
 }
 
 function validateManifestString(value, path, findings) {
