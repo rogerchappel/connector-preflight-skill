@@ -24,6 +24,8 @@ An action must provide non-empty string `connector` and `capability` values, an 
 
 A capability must provide a non-empty string `name`, an array of non-empty string `requiredScopes`, and boolean `requiresApproval` and `sideEffect` policy values. Empty scope arrays are valid and explicitly mean that no scopes are requested or required. Missing fields never inherit permissive defaults.
 
+Connector `id` values must be unique across a manifest. Capability `name` values must be unique within each connector. Duplicate definitions invalidate the complete manifest, so declaration order cannot cause a permissive definition to hide a conflicting policy.
+
 ## Sharing Guidance
 
 Reports may mention private connector names, scopes, or internal workflow details. Review before posting outside the local workspace.
