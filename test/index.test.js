@@ -58,6 +58,39 @@ test("manifest validation reports every malformed capability policy field in ind
   );
 });
 
+test("manifest validation reports malformed optional connector metadata in index order", () => {
+  const malformedManifest = {
+    connectors: [
+      { ...connector("first", "read"), name: { display: "First" }, sideEffects: "read" },
+      { ...connector("second", "write"), name: " ", sideEffects: ["write", "", 42, "  "] }
+    ]
+  };
+
+  assert.throws(
+    () => inspectConnectors(malformedManifest),
+    (error) => {
+      assert.deepEqual(error.message.split("\n"), [
+        "Invalid manifest: manifest.connectors[0].name must be a non-empty string.",
+        "Invalid manifest: manifest.connectors[0].sideEffects must be an array of non-empty strings when provided.",
+        "Invalid manifest: manifest.connectors[1].name must be a non-empty string.",
+        "Invalid manifest: manifest.connectors[1].sideEffects[1] must be a non-empty string.",
+        "Invalid manifest: manifest.connectors[1].sideEffects[2] must be a non-empty string.",
+        "Invalid manifest: manifest.connectors[1].sideEffects[3] must be a non-empty string."
+      ]);
+      return true;
+    }
+  );
+});
+
+test("optional connector metadata may be omitted", () => {
+  assert.deepEqual(inspectConnectors({ connectors: [connector("demo", "read")] }), [{
+    id: "demo",
+    name: "demo",
+    capabilities: ["read"],
+    sideEffects: []
+  }]);
+});
+
 test("manifest validation reports every duplicate connector id in index order", () => {
   const duplicateManifest = {
     connectors: [
@@ -418,6 +451,33 @@ test("CLI inspect and check fail closed for duplicate manifest identities", () =
     'Invalid manifest: manifest.connectors[0].capabilities[1].name duplicates manifest.connectors[0].capabilities[0].name ("write").',
     'Invalid manifest: manifest.connectors[1].id duplicates manifest.connectors[0].id ("duplicate").'
   ]);
+});
+
+test("CLI inspect and check fail closed for malformed connector display metadata", () => {
+  const manifestPath = join(tmpdir(), `connector-preflight-display-${process.pid}.json`);
+  writeFileSync(manifestPath, JSON.stringify({
+    connectors: [{
+      ...connector("crm-lite", "contact.read"),
+      name: false,
+      sideEffects: ["contact.update", "", null]
+    }]
+  }));
+
+  const expected = [
+    "Invalid manifest: manifest.connectors[0].name must be a non-empty string.",
+    "Invalid manifest: manifest.connectors[0].sideEffects[1] must be a non-empty string.",
+    "Invalid manifest: manifest.connectors[0].sideEffects[2] must be a non-empty string."
+  ];
+  const inspectRun = runCli("inspect", manifestPath);
+  assert.equal(inspectRun.status, 1);
+  assert.equal(inspectRun.stdout, "");
+  assert.deepEqual(inspectRun.stderr.trim().split("\n"), expected);
+
+  const checkRun = runCli("check", manifestPath, "fixtures/action.pass.json");
+  assert.equal(checkRun.status, 2);
+  assert.equal(checkRun.stderr, "");
+  assert.equal(JSON.parse(checkRun.stdout).verdict, "blocked");
+  assert.deepEqual(JSON.parse(checkRun.stdout).findings, expected);
 });
 
 test("CLI check exit status matches every verdict", () => {
