@@ -179,6 +179,12 @@ function validateManifest(manifest) {
     }
     validateManifestString(connector.id, `${connectorPath}.id`, findings);
     validateUniqueManifestString(connector.id, `${connectorPath}.id`, connectorIds, findings);
+    if (connector.name !== undefined) {
+      validateManifestString(connector.name, `${connectorPath}.name`, findings);
+    }
+    if (connector.sideEffects !== undefined) {
+      validateOptionalManifestStringArray(connector.sideEffects, `${connectorPath}.sideEffects`, findings);
+    }
     if (!Array.isArray(connector.capabilities)) {
       findings.push(`Invalid manifest: ${connectorPath}.capabilities must be an array.`);
       continue;
@@ -204,6 +210,18 @@ function validateManifest(manifest) {
     }
   }
   return findings;
+}
+
+function validateOptionalManifestStringArray(value, path, findings) {
+  if (!Array.isArray(value)) {
+    findings.push(`Invalid manifest: ${path} must be an array of non-empty strings when provided.`);
+    return;
+  }
+  for (const [index, entry] of value.entries()) {
+    if (typeof entry !== "string" || entry.trim() === "") {
+      findings.push(`Invalid manifest: ${path}[${index}] must be a non-empty string.`);
+    }
+  }
 }
 
 function validateUniqueManifestString(value, path, seen, findings) {

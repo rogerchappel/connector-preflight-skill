@@ -9,6 +9,8 @@ Use this skill before an agent invokes a connector that may read private data, w
 - An action object with non-empty string `connector` and `capability` fields, a `scopes` array of non-empty strings, an `approval` value of `granted`, `missing`, or `not-required`, and a boolean `dryRun`.
 - A selected manifest capability with a non-empty string `name`, a `requiredScopes` array of non-empty strings, and boolean `requiresApproval` and `sideEffect` fields.
 
+Connector display metadata is optional. When present, `name` must be a non-empty string and `sideEffects` must be an array of non-empty strings.
+
 Use an empty array (`[]`) to explicitly represent no requested or required scopes. Do not omit scope arrays or policy booleans; malformed or incomplete data is blocked.
 
 ## Side-Effect Boundaries
