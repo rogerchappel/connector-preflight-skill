@@ -7,9 +7,20 @@
 ```bash
 npm ci
 npm test
-node bin/connector-preflight.js check fixtures/connectors.json fixtures/action.needs-approval.json --format markdown
+node bin/connector-preflight.js check fixtures/connectors.json fixtures/action.pass.json --format markdown
 node bin/connector-preflight.js inspect fixtures/connectors.json
 npm run release:check
+```
+
+The primary sequence uses a passing action so every command is reached in a fail-fast shell.
+
+### Needs-approval example
+
+Non-pass verdicts intentionally stop shell and CI automation. This example reports `needs-approval` and exits with the documented status:
+
+```bash
+node bin/connector-preflight.js check fixtures/connectors.json fixtures/action.needs-approval.json --format markdown
+# expected status: 2
 ```
 
 ## Commands
