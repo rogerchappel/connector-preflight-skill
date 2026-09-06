@@ -81,12 +81,13 @@ export function preflight(manifest, action) {
 }
 
 export function renderMarkdown(report) {
+  const markdownText = (value, fallback) => escapeMarkdownText(value || fallback);
   const lines = [
-    `# Connector Preflight: ${report.action.connector || "unknown"}`,
+    `# Connector Preflight: ${markdownText(report.action.connector, "unknown")}`,
     "",
-    `- Capability: ${report.action.capability || "missing"}`,
-    `- Verdict: ${report.verdict}`,
-    `- Connector: ${report.connector?.name || report.connector?.id || "unknown"}`,
+    `- Capability: ${markdownText(report.action.capability, "missing")}`,
+    `- Verdict: ${markdownText(report.verdict, "unknown")}`,
+    `- Connector: ${markdownText(report.connector?.name || report.connector?.id, "unknown")}`,
     `- Dry run: ${report.action.dryRun === true ? "yes" : "no"}`,
     "",
     "## Findings",
@@ -97,13 +98,13 @@ export function renderMarkdown(report) {
     lines.push("- none");
   } else {
     for (const finding of report.findings) {
-      lines.push(`- ${finding}`);
+      lines.push(`- ${markdownText(finding, "none")}`);
     }
   }
 
   lines.push("", "## Required Scopes", "");
   for (const scope of report.capability?.requiredScopes || []) {
-    lines.push(`- ${scope}`);
+    lines.push(`- ${markdownText(scope, "missing")}`);
   }
   if (!report.capability?.requiredScopes?.length) {
     lines.push("- none");
@@ -119,6 +120,14 @@ export function renderMarkdown(report) {
   }
 
   return `${lines.join("\n")}\n`;
+}
+
+export function escapeMarkdownText(value) {
+  return String(value)
+    .replace(/[\u0000-\u001f\u007f]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/([\\`*_[\]{}()#+!|<>])/g, "\\$1");
 }
 
 export function exitCodeForVerdict(verdict) {
