@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { exitCodeForVerdict, inspectConnectors, preflight, renderMarkdown } from "../src/index.js";
+import { escapeMarkdownText, exitCodeForVerdict, inspectConnectors, preflight, renderMarkdown } from "../src/index.js";
 
 const manifest = JSON.parse(readFileSync(new URL("../fixtures/connectors.json", import.meta.url), "utf8"));
 const passAction = fixture("action.pass.json");
@@ -348,12 +348,84 @@ test("markdown render includes stop conditions", () => {
   assert.match(rendered, /Obtain explicit approval/);
 });
 
+test("markdown text normalization keeps untrusted values inside their fields", () => {
+  assert.equal(
+    escapeMarkdownText(" Demo\r\n## [link](target) *bold* `code` "),
+    "Demo \\#\\# \\[link\\]\\(target\\) \\*bold\\* \\`code\\`"
+  );
+
+  const hostileManifest = {
+    connectors: [{
+      id: "demo\n## forged connector heading",
+      name: "Display *name*\n- forged connector item",
+      capabilities: [{
+        name: "read\n## forged capability heading",
+        requiredScopes: ["scope:read\n- forged scope item", "[admin](https://example.invalid)"],
+        requiresApproval: true,
+        sideEffect: false
+      }]
+    }]
+  };
+  const hostileAction = {
+    connector: hostileManifest.connectors[0].id,
+    capability: hostileManifest.connectors[0].capabilities[0].name,
+    scopes: [],
+    approval: "missing",
+    dryRun: true
+  };
+  const rendered = renderMarkdown(preflight(hostileManifest, hostileAction));
+
+  assert.equal(rendered.match(/^## /gm)?.length, 3);
+  assert.equal(rendered.match(/^- /gm)?.length, 9);
+  assert.doesNotMatch(rendered, /\n## forged|\n- forged/);
+  assert.match(rendered, /Display \\\*name\\\* - forged connector item/);
+  assert.match(rendered, /\\\[admin\\\]\\\(https:\/\/example\.invalid\\\)/);
+});
+
 test("CLI inspect works with fixture manifest", () => {
   const output = execFileSync("node", ["bin/connector-preflight.js", "inspect", "fixtures/connectors.json"], {
     cwd: new URL("..", import.meta.url),
     encoding: "utf8"
   });
   assert.match(output, /crm-lite/);
+});
+
+test("CLI markdown output cannot gain headings or list items from input values", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "connector-preflight-markdown-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const manifestPath = join(root, "connectors.json");
+  const actionPath = join(root, "action.json");
+  const connectorId = "demo\n## injected heading";
+  const capabilityName = "read\n- injected item";
+  writeFileSync(manifestPath, JSON.stringify({
+    connectors: [{
+      id: connectorId,
+      name: "Demo `connector`",
+      capabilities: [{
+        name: capabilityName,
+        requiredScopes: ["scope\n## forged scope"],
+        requiresApproval: false,
+        sideEffect: false
+      }]
+    }]
+  }));
+  writeFileSync(actionPath, JSON.stringify({
+    connector: connectorId,
+    capability: capabilityName,
+    scopes: [],
+    approval: "not-required",
+    dryRun: true
+  }));
+
+  const run = spawnSync("node", ["bin/connector-preflight.js", "check", manifestPath, actionPath, "--format", "markdown"], {
+    cwd: new URL("..", import.meta.url),
+    encoding: "utf8"
+  });
+  assert.equal(run.status, 2);
+  assert.equal(run.stdout.match(/^## /gm)?.length, 3);
+  assert.equal(run.stdout.match(/^- /gm)?.length, 7);
+  assert.doesNotMatch(run.stdout, /\n## injected|\n- injected|\n## forged/);
+  assert.match(run.stdout, /Demo \\`connector\\`/);
 });
 
 test("CLI inspect exits nonzero with clear malformed-manifest diagnostics", () => {
