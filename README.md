@@ -84,6 +84,12 @@ npm run release:check
 
 This tool never executes the connector action. It only evaluates local manifests and local action requests. A `pass` verdict means the local preflight checks passed; it is not a guarantee that the live connector will succeed.
 
+Markdown reports normalize line breaks and control characters in manifest- and
+action-derived text to spaces, then escape Markdown formatting characters.
+Connector names, capability labels, findings, and required scopes therefore
+remain inside their intended heading or list field instead of creating report
+structure.
+
 ## Limitations
 
 - JSON manifests only in V1.
