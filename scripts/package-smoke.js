@@ -16,16 +16,21 @@ const required = [
   "README.md",
   "LICENSE",
   "SECURITY.md",
-  "scripts/package-smoke.js"
 ];
 
 const output = execFileSync("npm", ["pack", "--dry-run", "--json"], { encoding: "utf8" });
 const [pack] = JSON.parse(output);
 const files = new Set(pack.files.map((file) => file.path));
 const missing = required.filter((file) => !files.has(file));
+const forbidden = ["scripts/docs-smoke.js", "scripts/release-check.js"];
+const shippedForbidden = forbidden.filter((file) => files.has(file));
 
 if (missing.length > 0) {
   throw new Error(`package smoke missing required files: ${missing.join(", ")}`);
+}
+
+if (shippedForbidden.length > 0) {
+  throw new Error(`package smoke includes repository-only files: ${shippedForbidden.join(", ")}`);
 }
 
 if (pack.filename) {
