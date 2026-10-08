@@ -26,6 +26,7 @@
     "node": ">=18"
   },
   "files": [
+    "package.json",
     "bin",
     "src",
     "docs",
